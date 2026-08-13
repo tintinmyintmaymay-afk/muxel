@@ -1,0 +1,99 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "muxel",
+  "main": "packages/runtime/src/index.ts",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+
+  "placement": { "mode": "smart" },
+
+  // There is deliberately no workers_dev or preview_urls setting here, and it
+  // is not an oversight. Stating preview_urls false reads as sensible, since a
+  // preview would be a second live copy of the same assistant answering the
+  // same customers out of the same database. It also breaks the deploy button
+  // outright.
+  //
+  // The dashboard's one click flow builds a preview configuration alongside
+  // the real one. Told that previews are off, it stops filling that
+  // configuration in but still validates it, and its own form then throws
+  // ZodError previews_base_config.deploy_command, expected string, received
+  // undefined, on submit. The submission aborts half finished: the operator's
+  // repository is created holding two files, no build is ever queued, and the
+  // placeholder Worker stays deployed while the dashboard reports success.
+  //
+  // Three consecutive deploys failed that way. Every deploy before the setting
+  // was added succeeded. Cloudflare's form offers no field to correct it, so
+  // the only lever is to leave both unset and let the defaults stand, which is
+  // what worked. Do not add them back without a real deploy proving otherwise.
+
+  // Periodic repair. A webhook Telegram has dropped, or an address that changed
+  // when the deployment moved to a custom domain, both leave a bot that looks
+  // configured and answers nothing. This checks quarter hourly.
+  "triggers": {
+    "crons": ["*/15 * * * *"]
+  },
+
+  // The identifiers below are placeholders. Both setup paths replace them: the
+  // deploy button provisions each resource and rewrites this file, and the
+  // command line tool does the same locally. They are all zeros rather than
+  // blank so the configuration stays valid and the Worker still bundles before
+  // setup.
+  //
+  // The schema is applied by the Worker itself on first use, so there is no
+  // migrations directory. src/db/migrate.ts is the only definition of it.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "muxel",
+      "database_id": "11b059c4-59f3-4be0-b738-f570f10e2d65"
+    }
+  ],
+
+  // There is deliberately no R2 binding. Muxel would only use it to archive the
+  // original of an uploaded document, which nothing ever reads back, and
+  // enabling R2 requires a payment method even inside its free tier. Everything
+  // else here runs on the Workers Free plan. Add a binding named DOCUMENTS if
+  // you want originals kept; the runtime picks it up automatically.
+
+  "kv_namespaces": [
+    {
+      "binding": "STATE",
+      "id": "484517f91e154514a2ad37f22a28cb14"
+    }
+  ],
+
+  "vectorize": [
+    {
+      "binding": "KNOWLEDGE",
+      "index_name": "muxel-knowledge"
+    }
+  ],
+
+  "ai": {
+    "binding": "AI"
+  },
+
+  "vars": {
+    "MUXEL_ENV": "production",
+
+    // bge-m3 is multilingual and costs almost nothing against the daily free
+    // allowance. Changing it means rebuilding the Vectorize index, so it is
+    // deliberately not exposed in the console.
+    "EMBEDDING_MODEL": "@cf/baai/bge-m3",
+
+    // Cheapest model a plain Cloudflare login can reach, and the only tier
+    // where a small shop stays inside the free daily allowance.
+    "DEFAULT_MODEL": "workers-ai/@cf/google/gemma-4-26b-a4b-it",
+
+    "AI_GATEWAY_ID": "muxel",
+
+    // Default reply language for a business when it is created. The console
+    // can change it per business afterwards.
+    "BUSINESS_LOCALE": "en"
+  }
+}

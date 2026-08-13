@@ -1,0 +1,15 @@
+{
+  "name": "@muxel/runtime",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Muxel Worker runtime: webhook ingress, admin console, retrieval and inference",
+  "license": "Apache-2.0",
+  "author": "thankywal",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@muxel/core": "workspace:*"
+  }
+}
